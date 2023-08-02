@@ -11,9 +11,6 @@ This ZIP contains the following directories:
         -   All fields use double quotes text qualifier, including
             column headers
 
-```{=html}
-<!-- -->
-```
 -   Configs
 
     -   ProfileConfig.json
@@ -27,27 +24,18 @@ This ZIP contains the following directories:
 
                 -   Includes simple dates, drop downs, radio buttons
 
-            ```{=html}
-            <!-- -->
-            ```
             -   Profiles
 
                 -   Tries to find a specific profile given the profile
                     type specified and then assign it to the attribute
                     specified
 
-            ```{=html}
-            <!-- -->
-            ```
             -   Users
 
                 -   Tries to find a specific user mapping the value in
                     the CSV column to a user object with the parameter
                     specified
 
-        ```{=html}
-        <!-- -->
-        ```
         -   Example
 
             -   I want to import existing Organizations from a CSV file
@@ -61,16 +49,10 @@ This ZIP contains the following directories:
                 attribute "sponsor" after searching for the user who's
                 email matches the value in the CSV file.
 
-```{=html}
-<!-- -->
-```
 -   Logs
 
     -   Minor logging. Could be improved.
 
-```{=html}
-<!-- -->
-```
 -   Scripts
 
     -   ImportUsers.rb
@@ -87,9 +69,6 @@ This ZIP contains the following directories:
 
             -   CSV filename
 
-    ```{=html}
-    <!-- -->
-    ```
     -   SyncProfiles.rb
 
         -   This will create new profiles and update existing ones
@@ -105,9 +84,6 @@ This ZIP contains the following directories:
 
             -   The order you wish to import the specific profile types
 
-    ```{=html}
-    <!-- -->
-    ```
     -   Functions.rb
 
         -   You should not need to make changes here, but you might need
