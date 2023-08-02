@@ -45,35 +45,31 @@ class WorkflowHelper
 	end
 
 	def get_profile_ids	
-		# request_json = {
-		# 	"advanced_search": {
-		# 		"condition_rules_attributes": [
-		# 			{
-		# 				"type": "ProfileTypeRule",
-		# 				"comparison_operator": "==",
-		# 				"value": "#{@api.profile_type_id_map["ENTER PROFILE TYPE TEXT ( EX: Non-Employee Roles )"]}"
-		# 			},
-		# 			{
-		# 				"type": "ProfileAttributeRule",
-		# 				"condition_object_id": "#{@api.attribute_id_map['ENTER ATTRIBUTE UID']}",
-		# 				"object_type": "NeAttribute",
-		# 				"comparison_operator": "include?",
-		# 				"value": "ENTER VALUE HERE"
-		# 			}
-		# 		]
-		# 	}
-        # }
+		request_json = {
+			"advanced_search": {
+				"condition_rules_attributes": [
+					{
+						"type": "ProfileTypeRule",
+						"comparison_operator": "==",
+						"value": "#{@api.profile_type_id_map["ENTER PROFILE TYPE TEXT ( EX: Non-Employee Roles )"]}"
+					},
+					{
+						"type": "ProfileAttributeRule",
+						"condition_object_id": "#{@api.attribute_id_map['ENTER ATTRIBUTE UID']}",
+						"object_type": "NeAttribute",
+						"comparison_operator": "include?",
+						"value": "ENTER VALUE HERE"
+					}
+				]
+			}
+        }
 
-		# profiles = @api.make_request('POST', 'advanced_search/run', response_header: 'profiles', request_json: request_json.to_json)
+		profiles = @api.make_request('POST', 'advanced_search/run', response_header: 'profiles', request_json: request_json.to_json)
 
 
-		# file = File.open('pids_and_sids.csv')
-		# profiles= CSV.read(file,headers: true)
+		# file = File.open('internal_profile_id_ne_attribute.txt')
+		# profiles= file.readlines.map(&:chomp)
 		# file.close
-
-		file = File.open('internal_profile_id_ne_attribute.txt')
-		profiles= file.readlines.map(&:chomp)
-		file.close
 		
 		return profiles
 	end
