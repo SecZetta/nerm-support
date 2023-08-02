@@ -9,6 +9,7 @@
 /test/tmp/
 /test/version_tmp/
 /tmp/
+/scripts/bulk_cancel_sessions/ids/
 
 # Used by dotenv library to load environment variables.
 # .env
