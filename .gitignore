@@ -9,7 +9,10 @@
 /test/tmp/
 /test/version_tmp/
 /tmp/
+
+# Script ignores
 /scripts/bulk_cancel_sessions/ids/
+/scripts/profile_uid_to_id/files/
 
 # Used by dotenv library to load environment variables.
 # .env

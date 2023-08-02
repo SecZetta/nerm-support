@@ -1,0 +1,91 @@
+{
+	"Prof_test": {
+		"profile naming 1": "Name",
+		"fields": {
+			"collaborator": {
+				"type": "text",
+				"attribute": "collaborator"
+			},
+			"date_created": {
+				"type": "text",
+				"attribute": "date_created"
+			},
+			"eligible_for_rehire": {
+				"type": "text",
+				"attribute": "eligible_for_rehire"
+			},
+			"email": {
+				"type": "text",
+				"attribute": "email"
+			},
+			"first_name": {
+				"type": "text",
+				"attribute": "first_name"
+			},
+			"last_name": {
+				"type": "text",
+				"attribute": "last_name"
+			},
+			"ownsearch_ne_attribute": {
+				"type": "user",
+				"parameter": "email",
+				"attribute": "ownsearch_ne_attribute"
+			},
+			"person_id": {
+				"type": "text",
+				"attribute": "person_id"
+			},
+			"assignment_type": {
+				"type": "profile",
+				"profile type": "Populations",
+				"attribute": "assignment_type"
+			}
+		}
+	},
+	"Sub-Populations": {
+		"profile naming 1": "Name",
+		"fields": {
+			"Name": {
+				"type": "text",
+				"attribute": "display_name"
+			},
+			"Date Created": {
+				"type": "text",
+				"attribute": "date_created"
+			}
+		}
+	},
+	"Populations": {
+		"profile naming 1": "Name",
+		"fields": {
+			"Name": {
+				"type": "text",
+				"attribute": "display_name"
+			},
+			"Sub-Populations": {
+				"type": "profile",
+				"profile type": "Sub-Populations",
+				"attribute": "sub_types"
+			}
+		}
+	},
+	"Organizations": {
+		"profile naming 1": "Name",
+		"fields": {
+			"Name": {
+				"type": "text",
+				"attribute": "display_name"
+			},
+			"Populations": {
+				"type": "profile",
+				"profile type": "Populations",
+				"attribute": "managed_types"
+			},
+			"Sponsor": {
+				"type": "user",
+				"parameter": "email",
+				"attribute": "sponsor"
+			}
+		}
+	}
+}
