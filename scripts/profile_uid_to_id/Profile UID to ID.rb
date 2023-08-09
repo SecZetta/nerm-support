@@ -2,7 +2,6 @@ require 'json'
 require 'net/http'
 require 'uri'
 require 'net/https'
-require 'date'
 require 'csv'
 
 $stdout.sync = true
@@ -44,18 +43,6 @@ def makeAPIrequest (uriEnd, requesttype, jsonbody = '')
 	end
 end
 ##
-
-# ## Cancel the session
-# def cancel_session(session_id)
-#     req_json = {
-#         "workflow_session": {
-#             "status_uid": "closed"
-#         }
-#     }
-#     response= makeAPIrequest("workflow_sessions/#{session_id}", 'PATCH', req_json.to_json)
-#     p response
-# end
-# ##
 
 ## Pull UIDs from Text file into hash
 def pull_data
