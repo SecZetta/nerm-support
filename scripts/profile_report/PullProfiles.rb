@@ -9,19 +9,21 @@ $stdout.sync = true
 
 p "Pull Profiles Start"
 
-## Static values
-$Profile_Type_ID = ""
-$apitoken = ""
-$Tenant =""
-$baseUrl="https://#{$Tenant}.nonemployee.com"
+## STATIC VALUES -- SET BEFORE RUNNING SCRIPT
+$CSV_Headers = ["id","uid","name","profile_type_id","status","created_at","updated_at"]		# Headers for the final CSV, in order.
 
-$limit=500 						# can be 500 if using /profiles
-$default_offset=0				# default offset to use for API Requests
-$get_limit = Float::INFINITY	# or Float::INFINITY to not stop until the end.
+$Profile_Type_ID = ""	# Profile Type to use for the /profiles endpoint and in the Advanced Search JSON Body
+$API_Token = ""				# API Token the script will use to make requests
+$Tenant =""											# Tenant subdomain we will target for requests
+$Base_Url="https://#{$Tenant}.nonemployee.com"				# Base URL that the HTTP requests will use. 
 
-$Path = "Advanced Search Endpoint" 	# "Profiles Endpoint" OR "Advanced Search Endpoint"
+$Limit=500 													# Default limit for HTTP requests
+$Default_Offset=0											# Default offset for HTTP requests
+$Get_Limit = Float::INFINITY								# The limit for the number of returned profiles . Can use Float::INFINITY to get "all" profiles 
 
-$Request_json = {				## SET Json boyd if using the Advanced Search Endpoint
+$Path = "Profiles Endpoint" 	# Drives what request to make - "Profiles Endpoint" OR "Advanced Search Endpoint" 
+
+$Request_json = {				## SET Json body if using the Advanced Search Endpoint
 	"advanced_search": {
 		"condition_rules_attributes": [
 			{
@@ -37,32 +39,24 @@ class ExportHelper
 	def initialize 
 		# Location to save script output. Must be csv format. (Default: "data.csv")
 		@output_location = "#{$Tenant}_ProfileReport_#{Time.now.to_i}.csv"
-
-		# Headers for the final CSV, in order.
-		@CSV_Headers = ["id","uid","name","profile_type_id","status","created_at","updated_at"]
 	end
 
-	def create_csv(data_hash_array,headers=@CSV_Headers)
+	# Creates the start of the CSV with Headers only
+	def create_csv(headers=$CSV_Headers)
 		p "creating CSV"
 		csv_file = CSV.open(@output_location, "w", :write_headers=>true, :force_quotes=>true, :encoding=>'utf-8') do |csv|
 			csv.to_io.write "\uFEFF"
 			csv << headers
-			data_hash_array.each do |r|
-				row_arr = []
-				headers.each do |h|
-					row_arr << "#{r[h]}"
-				end
-				csv << row_arr.dup
-			end
 		end
 	end
 
-	def append_csv(data_hash_array,headers=@CSV_Headers)
+	# Appends slices of data to the CSV as the requests are made
+	def append_csv(data_hash_array,headers=$CSV_Headers)
 		p "adding #{data_hash_array.size} data records to CSV"
 		csv_file = CSV.open(@output_location, "ab", :force_quotes=>true, :encoding=>'utf-8') do |csv|
 			data_hash_array.each do |r|
 				row_arr = []
-				headers.each do |h|
+				headers.each do |h|		# Use headers as the key values to read each data row into the CSV so the attributes land in the right columns 
 					row_arr << "#{r[h]}"
 				end
 				csv << row_arr.dup
@@ -72,15 +66,15 @@ class ExportHelper
 end
 
 # Make API requests based on the given path
-def make_request(limit = $limit, offset)
+def make_request(limit = $Limit, offset)
 	case $Path
 		when "Profiles Endpoint"
 			limit = 500 unless limit < 500
-			uri = URI.parse("#{$baseUrl}/api/profiles?limit=#{limit}&offset=#{offset}&profile_type_id=#{$Profile_Type_ID}")
+			uri = URI.parse("#{$Base_Url}/api/profiles?limit=#{limit}&offset=#{offset}&profile_type_id=#{$Profile_Type_ID}")
 			request = Net::HTTP::Get.new(uri)
 		when "Advanced Search Endpoint"
 			limit = 100 unless limit < 100
-			uri = URI.parse("#{$baseUrl}/api/advanced_search/run?limit=#{limit}&offset=#{offset}")
+			uri = URI.parse("#{$Base_Url}/api/advanced_search/run?limit=#{limit}&offset=#{offset}")
 			request = Net::HTTP::Post.new(uri)
 			request.body = $Request_json.to_json
 		else
@@ -90,7 +84,7 @@ def make_request(limit = $limit, offset)
 	p uri
 
 	request.content_type = "application/json"
-	request["Authorization"] = "Token token=#{$apitoken}"
+	request["Authorization"] = "Token token=#{$API_Token}"
 	request["Accept"] = "application/json"
 
 	req_options = {
@@ -102,18 +96,16 @@ def make_request(limit = $limit, offset)
 		http.request(request)
 	end
 	return response,limit
-
 end
 #
 
-profiles = Array.new
-response = Hash.new
-offset = $default_offset
+response = Hash.new			# Holds the HTTP response
+profiles = Array.new		# Holds the Profiles gathered by the HTTP request
+offset = $Default_Offset	# Set a local scope offset so it can be manipulated if the default is too high for the endpoint
+helper = ExportHelper.new	# Export Helper class to make HTTP requests and generate the report csv
+helper.create_csv			# Create the initial CSV file
 
-helper = ExportHelper.new
-helper.create_csv({})
-
-while offset != $get_limit do
+while offset != $Get_Limit do
 	response,next_offset = make_request(offset)
 
 	case response
@@ -133,7 +125,7 @@ while offset != $get_limit do
 			end
 			offset += next_offset
 		
-			p "Hit the GET limit of #{$get_limit}, Stopping loop" if offset == $get_limit	
+			p "Hit the GET limit of #{$Get_Limit}, Stopping loop" if offset == $Get_Limit	
 		when Net::HTTPUnauthorized
 			p "{response.code} | #{response.message}: Check API token"
 			break
@@ -141,7 +133,8 @@ while offset != $get_limit do
 			p "{response.code} | #{response.message}: try again later?"
 			break
 		else
-			p "#{response.code} | #{response.message}"
+			p "#{response.code} | #{response.message} - May be end of Profiles"
+			
 			break
 	end
 
@@ -167,5 +160,5 @@ while offset != $get_limit do
 	
 		helper.append_csv(result_array)
 	end
-	profiles.clear
+	profiles.clear	# clear data from the Profiles Array for GC
 end
