@@ -10,12 +10,13 @@ $stdout.sync = true
 p "Pull Profiles Start"
 
 ## Static values
-$Profile_Type_ID = ""	#Telus Assignment Profile Type
+$Profile_Type_ID = ""
 $apitoken = ""
 $Tenant =""
-$baseUrl="https://#{$Tenant}.seczetta.ca"
+$baseUrl="https://#{$Tenant}.nonemployee.com"
 
 $limit=500 						# can be 500 if using /profiles
+$default_offset=0				# default offset to use for API Requests
 $get_limit = Float::INFINITY	# or Float::INFINITY to not stop until the end.
 
 $Path = "Advanced Search Endpoint" 	# "Profiles Endpoint" OR "Advanced Search Endpoint"
@@ -35,7 +36,7 @@ $Request_json = {				## SET Json boyd if using the Advanced Search Endpoint
 class ExportHelper
 	def initialize 
 		# Location to save script output. Must be csv format. (Default: "data.csv")
-		@output_location = "#{$Tenant}_ProfileReport_#{Date.today}.csv"
+		@output_location = "#{$Tenant}_ProfileReport_#{Time.now.to_i}.csv"
 
 		# Headers for the final CSV, in order.
 		@CSV_Headers = ["id","uid","name","profile_type_id","status","created_at","updated_at",
@@ -99,8 +100,8 @@ end
 #
 
 profiles = Array.new
-response=Hash.new
-offset = 0
+response = Hash.new
+offset = $default_offset
 
 while offset != $get_limit do
 	response,next_offset = make_request(offset)
