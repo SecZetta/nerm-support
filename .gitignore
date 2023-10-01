@@ -13,6 +13,7 @@
 # Script ignores
 /scripts/bulk_cancel_sessions/ids/
 /scripts/profile_uid_to_id/files/
+/scripts/profile_report/*.csv
 
 # Used by dotenv library to load environment variables.
 .env
