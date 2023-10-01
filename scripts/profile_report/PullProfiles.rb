@@ -39,20 +39,27 @@ class ExportHelper
 		@output_location = "#{$Tenant}_ProfileReport_#{Time.now.to_i}.csv"
 
 		# Headers for the final CSV, in order.
-		@CSV_Headers = ["id","uid","name","profile_type_id","status","created_at","updated_at",
-		"attribute_1","attribute_2"]
+		@CSV_Headers = ["id","uid","name","profile_type_id","status","created_at","updated_at"]
 	end
 
 	def create_csv(data_hash_array,headers=@CSV_Headers)
 		p "creating CSV"
-		csv_config = {
-			write_headers: true,
-			force_quotes: true,
-			encoding: 'utf-8'
-		}
 		csv_file = CSV.open(@output_location, "w", :write_headers=>true, :force_quotes=>true, :encoding=>'utf-8') do |csv|
 			csv.to_io.write "\uFEFF"
 			csv << headers
+			data_hash_array.each do |r|
+				row_arr = []
+				headers.each do |h|
+					row_arr << "#{r[h]}"
+				end
+				csv << row_arr.dup
+			end
+		end
+	end
+
+	def append_csv(data_hash_array,headers=@CSV_Headers)
+		p "adding #{data_hash_array.size} data records to CSV"
+		csv_file = CSV.open(@output_location, "ab", :force_quotes=>true, :encoding=>'utf-8') do |csv|
 			data_hash_array.each do |r|
 				row_arr = []
 				headers.each do |h|
@@ -103,6 +110,9 @@ profiles = Array.new
 response = Hash.new
 offset = $default_offset
 
+helper = ExportHelper.new
+helper.create_csv({})
+
 while offset != $get_limit do
 	response,next_offset = make_request(offset)
 
@@ -134,36 +144,28 @@ while offset != $get_limit do
 			p "#{response.code} | #{response.message}"
 			break
 	end
-end
 
-unless profiles.empty? then
-
-	helper = ExportHelper.new
-	result_array = []
-
-	profiles.each do |i|
-		record_hash = {}
-
-		# get top level attributes
-		i.each do |k,v|
-			unless k=="attributes" then
-				record_hash[k]=i[k] 
+	unless profiles.empty? then
+		result_array = []
+		profiles.each do |i|
+			record_hash = {}
+	
+			# get top level attributes
+			i.each do |k,v|
+				unless k=="attributes" then
+					record_hash[k]=i[k] 
+				end
 			end
+	
+			# get all profile attributes
+			i["attributes"].each do |k,v|
+				record_hash[k]=i["attributes"][k]
+			end
+	
+			result_array << record_hash.clone
 		end
-
-		# get all profile attributes
-		i["attributes"].each do |k,v|
-			record_hash[k]=i["attributes"][k]
-		end
-
-		result_array << record_hash.clone
+	
+		helper.append_csv(result_array)
 	end
-
-	custom_csv_headers = Array.new
-
-	result_array.each do |i|
-		custom_csv_headers |= i.keys
-	end
-
-	helper.create_csv(result_array,custom_csv_headers)
+	profiles.clear
 end
