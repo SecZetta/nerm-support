@@ -10,10 +10,10 @@ $stdout.sync = true
 p "Pull Profiles Start"
 
 ## Static values
-$Profile_Type_ID = ""
+$Profile_Type_ID = ""	#Telus Assignment Profile Type
 $apitoken = ""
 $Tenant =""
-$baseUrl="https://#{$Tenant}.nonemployee.com"
+$baseUrl="https://#{$Tenant}.seczetta.ca"
 
 $limit=500 						# can be 500 if using /profiles
 $get_limit = Float::INFINITY	# or Float::INFINITY to not stop until the end.
@@ -37,7 +37,7 @@ class ExportHelper
 		# Location to save script output. Must be csv format. (Default: "data.csv")
 		@output_location = "#{$Tenant}_ProfileReport_#{Date.today}.csv"
 
-		# Static Headers for the final CSV, used as default if the dynamic headers are not set. 
+		# Headers for the final CSV, in order.
 		@CSV_Headers = ["id","uid","name","profile_type_id","status","created_at","updated_at",
 		"attribute_1","attribute_2"]
 	end
@@ -64,9 +64,10 @@ class ExportHelper
 end
 
 # Make API requests based on the given path
-def make_request(limit,offset)
+def make_request(limit = $limit, offset)
 	case $Path
 		when "Profiles Endpoint"
+			limit = 500 unless limit < 500
 			uri = URI.parse("#{$baseUrl}/api/profiles?limit=#{limit}&offset=#{offset}&profile_type_id=#{$Profile_Type_ID}")
 			request = Net::HTTP::Get.new(uri)
 		when "Advanced Search Endpoint"
@@ -75,7 +76,8 @@ def make_request(limit,offset)
 			request = Net::HTTP::Post.new(uri)
 			request.body = $Request_json.to_json
 		else
-			return
+			p "No Path Selected"
+			exit 1
 	end
 	p uri
 
@@ -91,7 +93,7 @@ def make_request(limit,offset)
 	response = Net::HTTP.start(uri.hostname, uri.port, req_options) do |http|
 		http.request(request)
 	end
-	return response
+	return response,limit
 
 end
 #
@@ -101,7 +103,7 @@ response=Hash.new
 offset = 0
 
 while offset != $get_limit do
-	response = make_request($limit,offset)
+	response,next_offset = make_request(offset)
 
 	case response
 		when Net::HTTPSuccess
@@ -118,7 +120,7 @@ while offset != $get_limit do
 					profiles << i
 				end
 			end
-			offset += $limit
+			offset += next_offset
 		
 			p "Hit the GET limit of #{$get_limit}, Stopping loop" if offset == $get_limit	
 		when Net::HTTPUnauthorized
