@@ -15,7 +15,7 @@
 /scripts/profile_uid_to_id/files/
 
 # Used by dotenv library to load environment variables.
-# .env
+.env
 
 # Ignore Byebug command history file.
 .byebug_history
