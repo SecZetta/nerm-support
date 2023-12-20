@@ -1,5 +1,5 @@
 # nerm-support
-Repo to host scripts useful for supporting NERM customers
+Repo to host scripts useful for supporting SailPoint's Non-Employee Risk management product. 
 
 ## NERM Scripts
 ### Available files:
@@ -12,3 +12,5 @@ Repo to host scripts useful for supporting NERM customers
 
 ## NERM CLI tool
 We have added a CLI Tool that can be used to run similar processes that are defined in the scripts here. Currently, this is limited to Pulling data, but we are working on adding POST / PATCH operations
+
+#### This Repo is currently managed solely by Zachary Tarantino-Woolson and should be considered "Community Support" and Not officially supported by SailPoint.
