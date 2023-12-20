@@ -14,9 +14,13 @@
 /scripts/bulk_cancel_sessions/ids/
 /scripts/profile_uid_to_id/files/
 /scripts/profile_report/*.csv
+/nerm_support_cli/*.csv
+/nerm_support_cli/default_output_location/*.csv
 
 # Used by dotenv library to load environment variables.
-.env
+*.env
+*.env.*
+!settings.env
 
 # Ignore Byebug command history file.
 .byebug_history
