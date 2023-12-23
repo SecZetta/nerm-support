@@ -13,60 +13,32 @@ module NERMCLI
                 parser.banner = "Usage: nerm.rb [options]"
 
                 parser.on("-e", "--env", Array, "Allows you to set up a .env file to use for API calls") do |list|
-                    puts "Specify the Environment (production, test, dev) you want to set values for:"
-                    enviro=gets.chomp
-                    
-                    if File.exists?(".env.#{enviro}")
-                        puts ".env.#{enviro} already exists. Enter 'r' to read the current environment values for #{enviro} or Do you wish to overwrite this environment with new data? (y/n)"
-                        loop do
-                            answer=gets.chomp
-                            case answer
-                            when "r"
-                                env_vars=Dotenv.parse(".env.#{enviro}")
-                                puts env_vars
-                                puts "Do you wish to overwrite this environment with new data? (y/n)"
-                            when "y"
-                                puts "Specify the Tenant subdomain for the #{enviro} environment (IE: enter example for example.nonemployee.com):"
-                                tenatVal=gets.chomp
-                                puts "Specify the API Token value for the #{enviro} environment (Do not include 'Bearer' or 'Token token=' etc):"
-                                apiKey=gets.chomp
-                                File.open(".env.#{enviro}", "w") do |f|
-                                    f.puts("TENANT=#{tenatVal}")
-                                    f.puts("API_KEY=#{apiKey}")
-                                end
-                                break
-                            when "n"
-                                puts "exiting.."
-                                break
-                            else
-                                puts 'invalid input..'
-                            end
-                        end
-                    elsif !File.exists?(".env.#{enviro}")
-                        puts ".env.#{enviro} does not yet exist in this working directory. Creating a .env.#{enviro} .."
-                        puts "Specify the Tenant subdomain for the #{enviro} environment (IE: enter example for example.nonemployee.com):"
-                        tenatVal=gets.chomp
-                        puts "Specify the API Token value for the #{enviro} environment (Do not include 'Bearer' or 'Token token=' etc):"
-                        apiKey=gets.chomp
-                        File.open(".env.#{enviro}", "w") do |f|
-                            f.puts("TENANT=#{tenatVal}")
-                            f.puts("API_KEY=#{apiKey}")
-                        end
-                    end
+                    env_arr = NERMCLI::find_environments
+                    puts "Available Environments:"
+                    env_arr.each_with_index {|e,x| puts "#{x}. #{e}"}
+
+                    NERMCLI::environment_management(env_arr)
+
                 end
 
                 parser.on("--pull_profiles","Pull Profiles from an environment using specified arguments") do
-                    puts "Specify the Environment (production, test, dev) you want to pull Profiles from:"
-                    enviro=gets.chomp
-                    env_vars=Dotenv.parse(".env.#{enviro}")
+                    env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.current"))
+                    puts "Current Environment: #{env_vars["NAME"]}"
                     NERMCLI::pull_profiles(env_vars)
                 end
 
                 parser.on("--profile_count","Pull a count of all Profiles in an environment") do
-                    puts "Specify the Environment (production, test, dev) you want to pull a Profile count from:"
-                    enviro=gets.chomp
-                    env_vars=Dotenv.parse(".env.#{enviro}")
+                    env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.current"))
+                    puts "Current Environment: #{env_vars["NAME"]}"
+
                     NERMCLI::profile_count(env_vars)
+                end
+
+                parser.on("--health_check","Run a Health Check against the current environment") do
+                    env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.current"))
+                    puts "Current Environment: #{env_vars["NAME"]}"
+
+                    NERMCLI::health_check(env_vars)
                 end
 
                 parser.on("-h", "--help", "Prints this help") do
@@ -87,7 +59,11 @@ module NERMCLI
             return
         end
 
-        uri = URI.parse("https://#{env_vars["TENANT"]}.nonemployee.com/api/#{path}?#{URI.encode_www_form(param_hash)}")
+        if path == "health_check"
+            uri = URI.parse("https://#{env_vars["TENANT"]}/#{path}?#{URI.encode_www_form(param_hash)}")
+        else
+            uri = URI.parse("https://#{env_vars["TENANT"]}/api/#{path}?#{URI.encode_www_form(param_hash)}")
+        end
         request = Net::HTTP::Get.new(uri)
 
         # p uri
@@ -191,7 +167,6 @@ module NERMCLI
         end
         puts
     end
-    
 
     def pull_profiles(env_vars)
 
@@ -340,6 +315,7 @@ module NERMCLI
 
             param_hash["status"]="Active"
             response = make_request("profiles", env_vars, param_hash:param_hash)
+            # p response.body
             if response.code != "200"
                 result_array<<0
             else
@@ -413,6 +389,96 @@ module NERMCLI
                 end
             end            
         end
+    end
+
+    def find_environments
+        env_array = Array.new
+        Dir.foreach(File.join(Dir.pwd,"environments")) do |x|
+            env_array << x[5..-1] if /.env*/.match(x) # pull name of env 
+        end
+
+        return env_array
+    end
+
+    def environment_management(env_arr)
+        puts "Enter:"
+        puts "   '-r #' to read the values of an available environment (This will be used throughout the CLI)"
+        puts "   '-s #' to set your current environment to an available env (This will be used throughout the CLI)"
+        puts "   '-c' to create a new Environment"
+        puts "   '-u #' to modify an existing environment (IE: -u 2)"
+        puts "   or exit"
+
+        loop do
+            answer=gets.chomp
+            case 
+            when answer[0..1]=="-r"
+                puts
+                env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.#{env_arr[answer[-1].to_i]}"))
+                env_vars.each {|k,v| puts "#{k} | #{v}"}
+                puts "Enter:"
+                puts "   '-r #' to read the values of an available environment (This will be used throughout the CLI)"
+                puts "   '-s #' to set your current environment to an available env (This will be used throughout the CLI)"
+                puts "   '-c' to create a new Environment"
+                puts "   '-u #' to modify an existing environment (IE: -u 2)"
+                puts "   or exit"
+            when answer[0..1]=="-s"
+                env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.#{env_arr[answer[-1].to_i]}"))
+                File.open(File.join(Dir.pwd,"environments",".env.current"), "w") do |f|
+                    f.puts("NAME=#{env_arr[answer[-1].to_i]}")
+                    f.puts("TENANT=#{env_vars["TENANT"]}")
+                    f.puts("API_KEY=#{env_vars["API_KEY"]}")
+                end
+                puts "#{env_arr[answer[-1].to_i]} set as the Currrent Environment"
+                break
+            when answer=="-c"
+                puts "Specify a name for this environment (IE: sandbox, Production, etc):"
+                env_name=gets.chomp
+                break if env_name=="exit"
+
+                puts "Specify the Tenant for this environment (IE: enter example.nonemployee.com):"
+                tenatVal=gets.chomp
+                break if tenatVal=="exit"
+
+                puts "Specify the API Token value for this environment (Do not include 'Bearer' or 'Token token=' etc):"
+                apiKey=gets.chomp
+                break if apiKey=="exit"
+
+                File.open(File.join(Dir.pwd,"environments",".env.#{env_name}"), "w") do |f|
+                    f.puts("TENANT=#{tenatVal}")
+                    f.puts("API_KEY=#{apiKey}")
+                end
+                break
+            when answer[0..1]=="-u"
+                env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.#{env_arr[answer[-1].to_i]}"))
+                puts env_vars
+                puts "Specify the Tenant for the #{env_arr[answer[-1].to_i]} environment (IE: enter example.nonemployee.com):"
+                tenatVal=gets.chomp
+                break if tenatVal=="exit"
+
+                puts "Specify the API Token value for the #{env_arr[answer[-1].to_i]} environment (Do not include 'Bearer' or 'Token token=' etc):"
+                apiKey=gets.chomp
+                break if apiKey=="exit"
+
+                File.open(File.join(Dir.pwd,"environments",".env.#{env_arr[answer[-1].to_i]}"), "w") do |f|
+                    f.puts("TENANT=#{tenatVal}")
+                    f.puts("API_KEY=#{apiKey}")
+                end
+
+                break
+            when answer=="exit"
+                puts "exiting.."
+                break
+            else
+                puts 'invalid input..'
+            end
+        end
+    end
+
+    def health_check(env_vars)
+        response=make_request("health_check",env_vars)
+        
+        puts "","Response Code: #{response.code}"
+        puts "Healthy? : #{JSON.parse(response.body)['healthy']} | Message : #{JSON.parse(response.body)['message']}",""
     end
 end
 NERMCLI::Parser.parse(ARGV)
