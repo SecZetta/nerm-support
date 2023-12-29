@@ -5,6 +5,8 @@ require 'net/https'
 require 'uri'
 require 'json'
 require 'csv'
+require 'readline'
+require 'abbrev'
 
 module NERMCLI
     class Parser
@@ -12,38 +14,30 @@ module NERMCLI
             opt_parser = OptionParser.new do |parser|
                 parser.banner = "Usage: nerm.rb [options]"
 
-                parser.on("-e", "--env", Array, "Allows you to set up a .env file to use for API calls") do |list|
-                    env_arr = NERMCLI::find_environments
-                    puts "Available Environments:"
-                    env_arr.each_with_index {|e,x| puts "#{x}. #{e}"}
-
-                    NERMCLI::environment_management(env_arr)
-
+                parser.on("--env_manager", Array, "Allows you to set up a .env file to use for API calls") do |list|
+                    NERMCLI::environment_management()
+                end
+                
+                parser.on("--pull_users","Search for Users based on query parameters and generate a CSV or print a Table to the CLI") do
+                    NERMCLI::pull_users(NERMCLI::get_current_env)
                 end
 
-                parser.on("--pull_profiles","Pull Profiles from an environment using specified arguments") do
-                    env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.current"))
-                    puts "Current Environment: #{env_vars["NAME"]}"
-                    NERMCLI::pull_profiles(env_vars)
+                parser.on("--pull_profiles","Pull Profiles from an environment using specified arguments to generate a CSV") do
+                    NERMCLI::pull_profiles(NERMCLI::get_current_env)
                 end
 
                 parser.on("--profile_count","Pull a count of all Profiles in an environment") do
-                    env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.current"))
-                    puts "Current Environment: #{env_vars["NAME"]}"
-
-                    NERMCLI::profile_count(env_vars)
+                    NERMCLI::profile_count(NERMCLI::get_current_env)
                 end
 
                 parser.on("--health_check","Run a Health Check against the current environment") do
-                    env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.current"))
-                    puts "Current Environment: #{env_vars["NAME"]}"
-
-                    NERMCLI::health_check(env_vars)
+                    NERMCLI::health_check(NERMCLI::get_current_env)
                 end
 
-                parser.on("-h", "--help", "Prints this help") do
+                parser.on("--help", "Prints this help") do
+                    puts
                     puts parser
-                    exit
+                    puts "Type 'exit' to quit the NERM CLI"
                 end
             end
 
@@ -52,6 +46,24 @@ module NERMCLI
     end
 
     module_function
+    
+    ### HELPER FUNCTIONS
+
+    def get_current_env
+        env_vars={}
+        loop do
+            env_vars=Dotenv.parse(File.join(Dir.pwd,"environments",".env.current"))
+            if env_vars.empty?
+                puts "Current Evironment is Empty. Please Create or set an Environment"
+                NERMCLI::environment_management()
+            else
+                break
+            end
+        end
+
+        puts "Current Environment: #{env_vars["NAME"]}"
+        return env_vars
+    end
 
     def make_request(path, env_vars, param_hash: {}, request_json: nil)
         if path.nil?
@@ -95,9 +107,9 @@ module NERMCLI
         return response
     end
 
-    def get_single_p_type_total(env_vars,param_hash)
+    def get_profile_total(env_vars,param_hash)
         total_count_param_hash={}
-        total_count_param_hash["profile_type_id"]=param_hash["profile_type_id"]
+        total_count_param_hash["profile_type_id"]=param_hash["profile_type_id"] unless param_hash["profile_type_id"].empty?||param_hash["profile_type_id"].nil?
         total_count_param_hash["exclude_attributes"]="true"
         total_count_param_hash["limit"]=1
         total_count_param_hash["metadata"]="true"
@@ -105,7 +117,6 @@ module NERMCLI
         return JSON.parse(response.body)["_metadata"]["total"]
     end
 
-    # Creates a CSV file 
 	def create_csv(data_hash_array,headers,file_name)
         p "adding #{data_hash_array.size} data records to CSV"
         csv_file = CSV.open(File.join(Dir.pwd,Dotenv.parse("settings.env")["OUTPUT_FOLDER"],"/#{file_name}_#{Time.now.to_i}.csv"), "w",:write_headers=>true, :force_quotes=>true, :encoding=>'utf-8') do |csv|
@@ -120,39 +131,46 @@ module NERMCLI
         end
 	end
 
+    def exit_cli
+        puts "Closing NERM CLI.."
+        exit(0)
+    end
+
     def print_table(result_array)
         puts
         column_headers = Array.new
-        max_width_column=0
+        max_width_column=Hash.new
 
         result_array.each do |i|
             column_headers |= i.keys
         end
 
         column_headers.each do |c|
-            if c.length>max_width_column
-                max_width_column=c.length
+            max_width_column[c]=0
+            if c.length>max_width_column[c].to_i
+                max_width_column[c]=c.length.to_i
             end
         end
+
         result_array.each do |r|
             r.each do |k,v|
-                if v.to_s.length>max_width_column
-                    max_width_column=v.to_s.length
+                if v.to_s.length>max_width_column[k].to_i
+                    max_width_column[k]=v.to_s.length.to_i
                 end
             end
         end
 
-        max_width_column=max_width_column.to_i+3    # this it to account for the width of " | "
+        # all the +3 s  are to account for the width of " | "
 
         row_text=""
         column_headers.each do |c|
-            row_text+=sprintf('%*s',max_width_column.to_i,"#{c} | ")
+            row_text+=sprintf('%*s',max_width_column[c].to_i+3,"#{c} | ")
         end
         puts row_text
 
         row_text=""
-        for i in 1..column_headers.size do
-            for x in 1..max_width_column.to_i do
+        max_width_column.each do |k,v|
+            for x in 1..v.to_i+3 do
                 row_text+='-'
             end
         end
@@ -161,11 +179,161 @@ module NERMCLI
         result_array.each do |r|
             row_text=""
             column_headers.each do |c|
-                row_text+=sprintf('%*s',max_width_column.to_i,"#{r[c]} | ")
+                row_text+=sprintf('%*s',max_width_column[c].to_i+3,"#{r[c]} | ")
             end
             puts row_text
         end
         puts
+    end
+
+    ### OPTION FUNTIONS
+
+    def pull_users(env_vars)
+        response = Hash.new			# Holds the HTTP response
+        users = Array.new		# Holds the Profiles gathered by the HTTP request
+        offset = 0              	# Set a local scope offset so it can be manipulated if the default is too high for the endpoint
+        get_limit = eval(Dotenv.parse("settings.env")["DEFAULT_GET_LIMIT"])
+
+        # Defuault Params
+        param_hash={}
+        param_hash["limit"]=Dotenv.parse("settings.env")["DEFAULT_LIMIT_PARAM"].to_i
+
+        puts
+        puts "Enter the query parameters you want to use to find a User (Can be left blank to pull all Users)"
+        puts "-name '(String value in single quotes)'", "-status (Active/Disabled/Pending)", "-login (String value)", "-email (String value)", "-title '(String Value in single quotes)'"
+        puts "Usage: -name 'John Smith' -status Active"
+        # Set up Readline Autocomplete
+        user_list = [
+            '-name','-status','-login',
+            '-email','-title',
+            'exit','quit'
+        ].sort
+        comp = proc { |s| user_list.grep(/^#{Regexp.escape(s)}/) }
+        Readline.completion_append_character = ""
+        Readline.completion_proc = comp
+        query_parameters = Readline.readline('> ', true)
+
+        query_parameters=query_parameters.chomp.split(/\s([^-]+)/)
+        
+        exit_cli if query_parameters=="exit"||query_parameters=="quit"
+
+        unless query_parameters.nil? || query_parameters.empty?
+            query_parameters.each_slice(2).to_a.each do |arr|
+                case
+                when Abbrev.abbrev(["-name"],/-[a-zA-Z]/).keys.include?(arr[0])
+                    param_hash["name"]=arr[1].strip.delete_prefix("'").delete_suffix("'")
+                when Abbrev.abbrev(["-status"],/-[a-zA-Z]/).keys.include?(arr[0])
+                    param_hash["status"]=arr[1].strip
+                when Abbrev.abbrev(["-login"],/-[a-zA-Z]/).keys.include?(arr[0])
+                    param_hash["login"]=arr[1].strip
+                when Abbrev.abbrev(["-email"],/-[a-zA-Z]/).keys.include?(arr[0])
+                    param_hash["email"]=arr[1].strip
+                when Abbrev.abbrev(["-title"],/-[a-zA-Z]/).keys.include?(arr[0])
+                    param_hash["title"]=arr[1].strip.delete_prefix("'").delete_suffix("'")
+                when Abbrev.abbrev(["quit"],/[a-zA-Z]/).keys.include?(arr[0])||Abbrev.abbrev(["exit"],/[a-zA-Z]/).keys.include?(arr[0])
+                    puts "Exiting.."
+                    return
+                end
+            end
+        end
+
+        while offset != get_limit do
+            param_hash["offset"]=offset
+            puts "Requesting Users |  Offset: #{offset}"
+            response = make_request("users", env_vars, param_hash:param_hash)
+
+            case response
+                when Net::HTTPSuccess
+                    p "Success"
+                    parsed = response.read_body
+                    parsedresponse = JSON.parse(parsed)
+                    
+                    if parsedresponse["users"].empty? then 
+                        p 'No More User, Stopping loop'
+                        break
+                    else
+                        parsedresponse["users"].each do |i|
+                            users << i
+                        end
+                    end
+                    offset += param_hash["limit"]
+                
+                    p "Hit the GET limit of #{$Get_Limit}, Stopping loop" if offset == $Get_Limit	
+                when Net::HTTPUnauthorized
+                    p "#{response.code} | #{response.message}: Check API token"
+                    break
+                when Net::HTTPServerError
+                    p "#{response.code} | #{response.message}: try again later?"
+                    break
+                when Net::HTTPBadRequest
+                    p "#{response.code} | #{response.message}: #{JSON.parse(response.read_body)["error"]}"
+                    break
+                else
+                    p "#{response.code} | #{response.message} - May be end of available Users"
+                    break
+            end
+        end
+
+        unless users.empty? then
+            result_array = []
+            users.each do |i|
+                record_hash = {}
+        
+                # get top level attributes
+                i.each do |k,v|
+                    record_hash[k]=i[k] 
+                end
+        
+                result_array << record_hash.clone
+            end
+
+            custom_csv_headers = Array.new
+        
+            result_array.each do |i|
+                custom_csv_headers |= i.keys
+            end
+
+            # id,name,email,status
+            simple_arr=Array.new
+            result_array.each do |h|
+                record_hash = {}
+                record_hash["id"] = h["id"]
+                record_hash["name"] = h["name"]
+                record_hash["login"] = h["login"]
+                record_hash["email"] = h["email"]
+                record_hash["status"] = h["status"]
+                record_hash["type"] = h["type"]
+                simple_arr << record_hash.clone
+            end
+            
+            puts "Do you want to print a table of the profile counts to the console or save the profile counts to a csv file? (table/file/both)"
+            print_list = [
+                'table','file','both',
+                'exit','quit'
+            ].sort
+            comp = proc { |s| print_list.grep(/^#{Regexp.escape(s)}/) }
+            Readline.completion_append_character = ""
+            Readline.completion_proc = comp
+            answer = Readline.readline('> ', true)
+            loop do
+                case 
+                when Abbrev.abbrev(["table"],/[a-zA-Z]/).keys.include?(answer)
+                    print_table(simple_arr)
+                    break
+                when Abbrev.abbrev(["file"],/[a-zA-Z]/).keys.include?(answer)
+                    create_csv(result_array,custom_csv_headers,"#{env_vars["NAME"]}_user_report")
+                    break
+                when Abbrev.abbrev(["both"],/[a-zA-Z]/).keys.include?(answer)
+                    print_table(simple_arr)
+                    create_csv(result_array,custom_csv_headers,"#{env_vars["NAME"]}_user_report")
+                    break
+                when Abbrev.abbrev(["quit"],/[a-zA-Z]/).keys.include?(answer)||Abbrev.abbrev(["exit"],/[a-zA-Z]/).keys.include?(answer)
+                    break
+                else
+                    puts 'Invalid Input. Try again..'
+                end
+            end
+        end
     end
 
     def pull_profiles(env_vars)
@@ -193,27 +361,38 @@ module NERMCLI
         index=gets.to_i
         param_hash["profile_type_id"]=profile_types_hash[profile_types_disp[index]]
 
-        total_count= get_single_p_type_total(env_vars,param_hash)
-
         puts "Enter the query parameters you want to add to the call (Can be left blank). Available parameters:"
-        puts "--exclude_attributes (true/false), --name (String value of a Profile Name), --status (Active/Inactive/On Leave/Terminated), --metadata (true/false))"
-        puts "Usage: --exclude_attributes true --status Active"
-        query_parameters=gets.chomp.split
+        puts "-exclude_attributes (true/false)", "-name (String value of a Profile Name)", "-status (Active/Inactive/On Leave/Terminated)"
+        puts "Usage: -exclude_attributes true -status Active"
+        profile_list = [
+            '-exclude_attributes','-name','-status',
+            'exit','quit'
+        ].sort
+        comp = proc { |s| profile_list.grep(/^#{Regexp.escape(s)}/) }
+        Readline.completion_append_character = ""
+        Readline.completion_proc = comp
+        query_parameters = Readline.readline('> ', true)
+
+        query_parameters=query_parameters.chomp.split(/\s([^-]+)/)
+        
+        exit_cli if query_parameters=="exit"||query_parameters=="quit"
 
         unless query_parameters.nil? || query_parameters.empty?
             query_parameters.each_slice(2).to_a.each do |arr|
-                case arr[0]
-                when "-exclude_attributes","--exclude_attributes","-exclude","--exclude"
+                case
+                when Abbrev.abbrev(["-exclude_attributes"],/-[a-zA-Z]/).keys.include?(arr[0])
                     param_hash["exclude_attributes"]=arr[1]
-                when "-name","--name","-n","--n"
-                    param_hash["name"]=arr[1]
-                when "-status","--status","-s","--s"
+                when Abbrev.abbrev(["-name"],/-[a-zA-Z]/).keys.include?(arr[0])
+                    param_hash["name"]=arr[1].strip.delete_prefix("'").delete_suffix("'")
+                when Abbrev.abbrev(["-status"],/-[a-zA-Z]/).keys.include?(arr[0])
                     param_hash["status"]=arr[1]
-                when "-metadata","--metadata","-m","--m"
-                    param_hash["metadata"]=arr[1]
+                when Abbrev.abbrev(["quit"],/[a-zA-Z]/).keys.include?(arr[0])||Abbrev.abbrev(["exit"],/[a-zA-Z]/).keys.include?(arr[0])
+                    puts "Exiting.."
+                    return
                 end
             end
         end
+        total_count= get_profile_total(env_vars,param_hash)
 
         while offset != get_limit do
             param_hash["offset"]=offset
@@ -281,7 +460,7 @@ module NERMCLI
                 custom_csv_headers |= i.keys
             end
         
-            create_csv(result_array,custom_csv_headers,env_vars["TENANT"])
+            create_csv(result_array,custom_csv_headers,"#{env_vars["NAME"]}_profile_report")
         end
     end
 
@@ -371,23 +550,33 @@ module NERMCLI
             end
 
             puts "Do you want to print a table of the profile counts to the console or save the profile counts to a csv file? (table/file/both)"
+            print_list = [
+                'table','file','both',
+                'exit','quit'
+            ].sort
+            comp = proc { |s| print_list.grep(/^#{Regexp.escape(s)}/) }
+            Readline.completion_append_character = ""
+            Readline.completion_proc = comp
+            answer = Readline.readline('> ', true)
             loop do
                 answer=gets.chomp
-                case answer
-                when "t","ta","tab","tabl","table"
+                case
+                when Abbrev.abbrev(["table"],/[a-zA-Z]/).keys.include?(answer)
                     print_table(result_array)
                     break
-                when "f","fi","fil","file"
+                when Abbrev.abbrev(["file"],/[a-zA-Z]/).keys.include?(answer)
                     create_csv(result_array,custom_csv_headers,"#{env_vars["TENANT"]}_profile_count")
                     break
-                when "b","bo","bot","both"
+                when Abbrev.abbrev(["both"],/[a-zA-Z]/).keys.include?(answer)
                     print_table(result_array)
                     create_csv(result_array,custom_csv_headers,"#{env_vars["TENANT"]}_profile_count")
+                    break
+                when Abbrev.abbrev(["quit"],/[a-zA-Z]/).keys.include?(answer)||Abbrev.abbrev(["exit"],/[a-zA-Z]/).keys.include?(answer)
                     break
                 else
                     puts 'Invalid Input. Try again..'
                 end
-            end            
+            end
         end
     end
 
@@ -400,10 +589,14 @@ module NERMCLI
         return env_array
     end
 
-    def environment_management(env_arr)
+    def environment_management()
+        env_arr = NERMCLI::find_environments
+        puts "Available Environments:"
+        env_arr.each_with_index {|e,x| puts "#{x}. #{e}"}
+
         puts "Enter:"
         puts "   '-r #' to read the values of an available environment (This will be used throughout the CLI)"
-        puts "   '-s #' to set your current environment to an available env (This will be used throughout the CLI)"
+        puts "   '-s #' to set an available env to be your 'current' environment  (This will be used throughout the CLI)"
         puts "   '-c' to create a new Environment"
         puts "   '-u #' to modify an existing environment (IE: -u 2)"
         puts "   or exit"
@@ -466,8 +659,7 @@ module NERMCLI
 
                 break
             when answer=="exit"
-                puts "exiting.."
-                break
+                exit_cli
             else
                 puts 'invalid input..'
             end
@@ -481,4 +673,25 @@ module NERMCLI
         puts "Healthy? : #{JSON.parse(response.body)['healthy']} | Message : #{JSON.parse(response.body)['message']}",""
     end
 end
-NERMCLI::Parser.parse(ARGV)
+
+# # On CLI Start, print the Help
+# NERMCLI::Parser.parse(["--help"])
+
+# Get option entry
+loop do
+    # Set up Readline Autocomplete
+    opt_list = [
+        '--help', '--health_check', '--pull_profiles',
+        '--pull_users', '--profile_count', '--env_manager',
+        'exit','quit'
+    ].sort
+    comp = proc { |s| opt_list.grep(/^#{Regexp.escape(s)}/) }
+    Readline.completion_append_character = ""
+    Readline.completion_proc = comp
+
+    NERMCLI::Parser.parse(["--help"])
+    line = Readline.readline('> ', true)
+    NERMCLI::exit_cli if (line.match?(/exit|quit/))
+
+    NERMCLI::Parser.parse(["#{line}"])
+end
