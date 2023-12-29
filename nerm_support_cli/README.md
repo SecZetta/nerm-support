@@ -30,6 +30,6 @@ Start up a terminal and navigate to the `\nerm-suport\nerm_cupport-cli` folder
 From that folder, run the cli tool with `ruby .\nerm.rb`
 You will then be persented with the available options:
 
-image
+![image](https://github.com/SecZetta/nerm-support/assets/106765914/cc0e82d9-a3d4-460f-bfb6-f8a6501d3f39)
 
 You can utilize the Tab key to autocomplete your typing for arguments and see what options are available.
