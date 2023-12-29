@@ -559,7 +559,6 @@ module NERMCLI
             Readline.completion_proc = comp
             answer = Readline.readline('> ', true)
             loop do
-                answer=gets.chomp
                 case
                 when Abbrev.abbrev(["table"],/[a-zA-Z]/).keys.include?(answer)
                     print_table(result_array)
