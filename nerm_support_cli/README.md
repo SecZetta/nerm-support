@@ -23,3 +23,13 @@ There are default settings configured in the `settings.env` file. These are:
 - `--profile_count` : This will pull a count of all Profiles in an environment and either export the values to a file or display a table in the cli.
     - After sending in `-profile_count`, you will be prompted to specify the environment you want pull a Profile count for.
     - After which, you can choose to export that data to a file, display it as a table, or both. 
+
+## Usage: 
+
+Start up a terminal and navigate to the `\nerm-suport\nerm_cupport-cli` folder
+From that folder, run the cli tool with `ruby .\nerm.rb`
+You will then be persented with the available options:
+
+image
+
+You can utilize the Tab key to autocomplete your typing for arguments and see what options are available.

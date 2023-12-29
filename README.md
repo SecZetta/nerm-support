@@ -13,4 +13,14 @@ Repo to host scripts useful for supporting SailPoint's Non-Employee Risk managem
 ## NERM CLI tool
 We have added a CLI Tool that can be used to run similar processes that are defined in the scripts here. Currently, this is limited to Pulling data, but we are working on adding POST / PATCH operations
 
-#### This Repo is currently managed solely by Zachary Tarantino-Woolson and should be considered "Community Support" and Not officially supported by SailPoint.
+### CLI Usage: 
+
+Start up a terminal and navigate to the `\nerm-suport\nerm_cupport-cli` folder
+From that folder, run the cli tool with `ruby .\nerm.rb`
+You will then be persented with the available options:
+
+image
+
+You can utilize the Tab key to autocomplete your typing for arguments and see what options are available.
+
+##### This Repo is currently managed solely by Zachary Tarantino-Woolson and should be considered "Community Support" and Not officially supported by SailPoint.
