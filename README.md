@@ -12,6 +12,6 @@ Repo to host scripts useful for supporting SailPoint's Non-Employee Risk managem
 
 ## NERM CLI tool
 We have added a CLI Tool that can be used to run similar processes that are defined in the scripts here. Currently, this is limited to Pulling data, but we are working on adding POST / PATCH operations
-(Visit the CLI Read Me for full details)[https://github.com/SecZetta/nerm-support/blob/main/nerm_support_cli/README.md]
+[Visit the CLI Read Me for full details](https://github.com/SecZetta/nerm-support/blob/main/nerm_support_cli/README.md)
 
 #### This Repo is currently managed solely by Zachary Tarantino-Woolson and should be considered "Community Support" and Not officially supported by SailPoint.
