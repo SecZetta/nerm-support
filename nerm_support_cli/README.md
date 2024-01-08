@@ -33,3 +33,8 @@ You will then be persented with the available options:
 https://github.com/SecZetta/nerm-support/assets/106765914/af154822-0ed3-48d5-ba65-4588dce206ce
 
 You can utilize the Tab key to autocomplete your typing for arguments and see what options are available.
+
+### ToDo
+
+- IDP report
+    - Record update
